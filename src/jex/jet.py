@@ -1,41 +1,84 @@
-import torch  # needs last version for one kwarg in autograd
+from typing import Callable, Literal, overload
+
+import torch
+from torch import Tensor
 from torch.autograd.functional import jvp
 
 
-def jet(f, x, y, k, recenter=True, return_coefficients=False):
-    """
-    Does not work for batched input!  # TODO batchify (probably not)
+@overload
+def jet(
+    f: Callable[[Tensor], Tensor],
+    x: Tensor,
+    y: Tensor,
+    k: int,
+    *,
+    recenter: bool = True,
+    return_coefficients: Literal[False] = ...,
+) -> Tensor: ...
 
-    :param f: a callable (to be evaluated on x).
-    :param x: center, in the domain of f, just a tensor for the time being
-    :param y: variate in the domain of f, just a tensor for the time being
-    :param k: order
-    :param recenter: if True, f(y) = f(x) + f'(x) * (y - x) + ... If False, f(x+y) = f(x) + f'(x) * y + ...
-    :param return_coefficients: if True, returns also all the list of coefficients of the polynomial (useful for
-                                    including all orders before k for computing) and their cumulative sum
 
-    :return: jet^k f(x)(y) .    If return_coefficients is true returns also the list of coefficients of the polynomial
-                            and the partial sums
+@overload
+def jet(
+    f: Callable[[Tensor], Tensor],
+    x: Tensor,
+    y: Tensor,
+    k: int,
+    *,
+    recenter: bool = True,
+    return_coefficients: Literal[True],
+) -> tuple[Tensor, list[Tensor], list[Tensor]]: ...
+
+
+def jet(
+    f: Callable[[Tensor], Tensor],
+    x: Tensor,
+    y: Tensor,
+    k: int,
+    *,
+    recenter: bool = True,
+    return_coefficients: bool = False,
+) -> Tensor | tuple[Tensor, list[Tensor], list[Tensor]]:
+    """Compute the k-th order jet expansion of f centred at x, evaluated at y.
+
+    The jet is the truncated Taylor polynomial:
+        jet^k f(x)(y) = f(x) + '(x)(y-x) + f''(x)(y-x)²/2! + ... + f^(k)(x)(y-x)^k/k!
+
+    Args:
+        f: Callable to expand. Must map a single Tensor to a Tensor (no batch dim).
+        x: Center of the expansion.
+        y: Point at which to evaluate the expansion.
+        k: Order of the expansion.
+        recenter: If True, expands around x (standard Taylor). If False, expands around
+            the origin, i.e. f(x + y) ≈ f(x) + f'(x)·y + ...
+        return_coefficients: If True, also returns the list of per-order coefficients
+            (each divided by j!) and their cumulative partial sums.
+
+    Returns:
+        The jet value jet^k f(x)(y). If return_coefficients is True, returns a tuple
+        (jet_value, coefficients, partial_sums) where coefficients[j] = f^(j)(x)·(y-x)^j / j!
+        and partial_sums[j] = sum of coefficients up to order j.
+
+    Note:
+        Does not support batched inputs.
     """
     assert callable(f), "need a callable function"
-    res, funcs = [f(x)], [f] + [None]*k
+    res = [f(x)]
+    functions: list[Callable[[Tensor], Tensor]] = [f]
     yp = y.detach()
     if recenter:
-        yp = yp.detach() - x.detach()  # detach here, otherwise will compute derivative also wrt x...
+        yp = yp - x.detach()
 
-    def make_functional(i):
-        def _f(_x):
-            # noinspection PyTypeChecker
-            return jvp(funcs[i], _x, yp, create_graph=True, strict=False)[1] # jvp returns f(x), D f(x) v
+    def make_functional(i: int) -> Callable[[Tensor], Tensor]:
+        def _f(_x: Tensor) -> Tensor:
+            return jvp(functions[i], _x, yp, create_graph=True, strict=False)[1]  # type: ignore
         return _f
 
-    for j in range(1, k + 1):  # todo change this part to do all in once using the tuple signature of jvp
-        # construct the next functional
-        funcs[j] = make_functional(j - 1)
-        # compute its value
-        d_prev = funcs[j](x)
-        res.append(d_prev / torch.math.factorial(j))  # divide by j!
-    sum_all = sum(res)  # this is the numerical value of the full jet
+    for j in range(1, k + 1):
+        functions.append(make_functional(j - 1))
+        res.append(functions[j](x) / torch.math.factorial(j))
+
+    sum_all: Tensor = sum(res)  # type: ignore[assignment]
     if return_coefficients:
-        return sum_all, res, [sum(res[1:j + 1], res[0]) for j in range(k + 1)]
+        partial_sums = [sum(res[1:j + 1], res[0]) for j in range(k + 1)]
+        return sum_all, res, partial_sums
     return sum_all
