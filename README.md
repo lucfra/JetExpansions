@@ -13,7 +13,7 @@ Requires Python 3.11.
 uv sync
 
 # Development install (includes pytest)
-uv sync --extra dev
+uv sync --group dev
 
 # Activate the environment, or prefix commands with `uv run` (e.g. `uv run pytest`)
 source .venv/bin/activate

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "jex"
@@ -12,11 +12,11 @@ dependencies = [
     "numpy",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/jex"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[dependency-groups]
+dev = ["pytest"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
