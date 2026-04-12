@@ -13,6 +13,9 @@ uv sync
 # Development install (includes pytest)
 uv sync --group dev
 
+# Examples install (includes jupyter, matplotlib, seaborn)
+uv sync --group examples
+
 # Activate the environment, or prefix commands with `uv run` (e.g. `uv run pytest`)
 source .venv/bin/activate
 ```

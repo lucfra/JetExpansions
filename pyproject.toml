@@ -18,6 +18,7 @@ packages = ["src/jex"]
 
 [dependency-groups]
 dev = ["pytest"]
+examples = ["jupyter", "ipykernel", "matplotlib", "seaborn"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

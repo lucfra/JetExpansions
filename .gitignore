@@ -7,3 +7,5 @@ __pycache__/
 .vscode/
 
 .DS_Store
+
+download_models.py

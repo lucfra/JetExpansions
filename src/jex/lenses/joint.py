@@ -30,6 +30,15 @@ class JointJetLens:
         self._lm = lm
         self._n = len(centers)
         self._log_weights: nn.Parameter | None = None
+        self._metric: Tensor | None = None
+
+    @property
+    def metric(self) -> Tensor:
+        """U^T U, precomputed lazily and cached. Shape (d_model, d_model)."""
+        if self._metric is None:
+            U = self._lm.unembedding.weight  # (vocab, d_model)
+            self._metric = (U.T @ U).detach()
+        return self._metric
 
     @property
     def weights(self) -> Tensor:
@@ -62,7 +71,7 @@ class JointJetLens:
         )
         target = self._jet_out.f(z).detach()
         diff = target - combo
-        metric = (self._lm.unembedding.weight.T @ self._lm.unembedding.weight).detach().to(diff.dtype)
+        metric = self.metric.to(diff.dtype)
         return torch.einsum('...i,ij,...j->', diff, metric, diff) / diff.numel()
 
     def optimize_weights(self, z: Tensor, lr: float = 1e-3, iters: int = 100) -> list[float]:
