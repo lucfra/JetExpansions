@@ -22,8 +22,12 @@ class JetExpandedTerm(nn.Module):
         
     def forward(self, z: Tensor) -> Tensor:
         x0 = self._center(z)
-        with torch.no_grad():
-            y = self._variate(z)
+        if self._order > 0:
+            with torch.no_grad():
+                y = self._variate(z)
+        else:
+            # no need to actually compute the variate since it's not used for zeroth-order exps
+            y = torch.zeros_like(x0)
         jet_out = jet(self._f, x0, y, self._order)
         return self._weight * jet_out
     
@@ -32,11 +36,19 @@ class JetExpandedTerm(nn.Module):
 class JetExpansionOut:
     terms: list[JetExpandedTerm]
     f: Callable[[Tensor], Tensor]
+    unembedding: nn.Linear | None = None
     
     def expansions_and_remainder(self, z: Tensor) -> tuple[list[Tensor], Tensor]:
         """Compute expansions and remainder in one pass, reusing term evaluations."""
         exps = [term(z) for term in self.terms]
         return exps, self.f(z) - sum(exps)
+    
+    def expansions_and_remainder_with_unembedding(self, z: Tensor) -> tuple[list[Tensor], Tensor]:
+        if self.unembedding is None:
+            raise ValueError("unembedding is None")
+        exps, remainder = self.expansions_and_remainder(z)
+        exps = [self.unembedding(exp) for exp in exps]
+        return exps, self.unembedding(remainder)
         
     
 def jet_expand(f: Callable[[Tensor], Tensor], centers: list[Callable[[Tensor], Tensor]], variate: Callable[[Tensor], Tensor], order: int, weight: Tensor | None = None) -> JetExpansionOut:
@@ -68,6 +80,7 @@ def jet_expand_lm(lm: LM, layer: int, centers: list[Callable[[Tensor], Tensor]],
     else:
         jet_out = jet_expand(lm.ln, centers, variate, order, weight)
         jet_out.f = lambda z: lm.ln(variate(z))
+        jet_out.unembedding = lm.unembedding
     return jet_out
         
     

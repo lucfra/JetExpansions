@@ -1,8 +1,7 @@
 import pytest
-from pytest import fixture
 import torch
 import torch.nn as nn
-from jex.models import LM, from_pretrained
+from jex.models import LM
 
 
 def test_loads(lm):
@@ -68,14 +67,15 @@ def test_residual_stream(lm: LM, tokens):
     # last layer coincides with the transformer output (before the lm head)
     h_L = lm.residual_stream(lm.depth)(tokens)
     h_L_after_global_norm = lm.ln(h_L)
-    transformer = None
     if hasattr(lm.model, 'transformer'):
         # gpt2 - style
         transformer = lm.model.transformer
     elif hasattr(lm.model, 'gpt_neox'):
         transformer = lm.model.gpt_neox
+    else: 
+        pytest.skip("Don't know the transformer structure")
     if transformer:
-        hL_transformer = transformer(tokens)
+        hL_transformer = transformer(tokens)  # type: ignore
         hL_transformer = lm.getter(hL_transformer)
         assert torch.allclose(hL_transformer, h_L_after_global_norm)
 

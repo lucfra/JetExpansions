@@ -18,6 +18,10 @@ class LM:
         model: The underlying model for forward passes (HuggingFace model, but should accommodate other models as well).
         tokenizer: The associated tokenizer.
         layers: Ordered list of transformer blocks.
+        attentions: Ordered list of attention sub-modules (one per block).
+        mlps: Ordered list of MLP sub-modules (one per block).
+        pre_attn_norms: Layer norms applied before attention (one per block).
+        pre_mlp_norms: Layer norms applied before the MLP (one per block).
         ln: Final layer norm applied before the lm_head.
         lm_head: Unembedding projection (hidden dim → vocab).
         encoder: Embedding function (vocab -> hidden dim).
@@ -33,6 +37,10 @@ class LM:
     model: nn.Module
     tokenizer: Any
     layers: list[nn.Module]
+    attentions: list[nn.Module]
+    mlps: list[nn.Module]
+    pre_attn_norms: list[nn.Module]
+    pre_mlp_norms: list[nn.Module]
     ln: nn.Module
     unembedding: nn.Linear
     embedding: nn.Module
@@ -118,10 +126,15 @@ def _gpt2_adapter(model, tokenizer) -> LM:
     def layer_fn(idx: int) -> Callable[[Tensor], Tensor]:
         return lambda h: _get_hidden_state(model.transformer.h[idx](h))
 
+    blocks = list(model.transformer.h)
     return LM(
         model=model,
         tokenizer=tokenizer,
-        layers=list(model.transformer.h),
+        layers=blocks,
+        attentions=[b.attn for b in blocks],
+        mlps=[b.mlp for b in blocks],
+        pre_attn_norms=[b.ln_1 for b in blocks],
+        pre_mlp_norms=[b.ln_2 for b in blocks],
         ln=model.transformer.ln_f,
         unembedding=model.lm_head,
         embedding=model.transformer.wte,
@@ -141,10 +154,15 @@ def _llama_adapter(model, tokenizer) -> LM:
             return _get_hidden_state(model.model.layers[idx](h, attention_mask=mask, position_embeddings=(cos, sin)))
         return call
 
+    blocks = list(model.model.layers)
     return LM(
         model=model,
         tokenizer=tokenizer,
-        layers=list(model.model.layers),
+        layers=blocks,
+        attentions=[b.self_attn for b in blocks],
+        mlps=[b.mlp for b in blocks],
+        pre_attn_norms=[b.input_layernorm for b in blocks],
+        pre_mlp_norms=[b.post_attention_layernorm for b in blocks],
         ln=model.model.norm,
         unembedding=model.lm_head,
         embedding=model.model.embed_tokens,
@@ -165,10 +183,15 @@ def _gpt_neox_adapter(model, tokenizer) -> LM:
             return _get_hidden_state(model.gpt_neox.layers[idx](h, attention_mask=mask, position_embeddings=(cos, sin)))
         return call
 
+    blocks = list(model.gpt_neox.layers)
     return LM(
         model=model,
         tokenizer=tokenizer,
-        layers=list(model.gpt_neox.layers),
+        layers=blocks,
+        attentions=[b.attention for b in blocks],
+        mlps=[b.mlp for b in blocks],
+        pre_attn_norms=[b.input_layernorm for b in blocks],
+        pre_mlp_norms=[b.post_attention_layernorm for b in blocks],
         ln=model.gpt_neox.final_layer_norm,
         unembedding=model.embed_out,
         embedding=model.gpt_neox.embed_in,
@@ -185,7 +208,6 @@ _ADAPTERS: dict[str, Callable] = {
     "LlamaForCausalLM": _llama_adapter,
     "MistralForCausalLM": _llama_adapter,
     "GemmaForCausalLM": _llama_adapter,
-    "Gemma2ForCausalLM": _llama_adapter,
 }
 
 
