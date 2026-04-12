@@ -51,19 +51,19 @@ class JetExpansionOut:
         return exps, self.unembedding(remainder)
         
     
-def jet_expand(f: Callable[[Tensor], Tensor], centers: list[Callable[[Tensor], Tensor]], variate: Callable[[Tensor], Tensor], order: int, weight: Tensor | None = None) -> JetExpansionOut:
+def jet_expand(f: Callable[[Tensor], Tensor], centers: list[Callable[[Tensor], Tensor]], variate: Callable[[Tensor], Tensor], order: int, weights: Tensor | None = None) -> JetExpansionOut:
     assert order >= 0, "Order should be non negative"
     n = len(centers)
-    if weight is None:
-        weight = torch.ones((n,)) / n
-    assert weight.shape == (n,), f"Weight should be a vector of length n: {n}; got\n{weight}"
+    if weights is None:
+        weights = torch.ones((n,)) / n
+    assert weights.shape == (n,), f"Weight should be a vector of length n: {n}; got\n{weights}"
     if not isinstance(variate, CachedF):
         variate = CachedF(variate)
-    terms = [JetExpandedTerm(f, centers[i], variate, order, weight[i]) for i in range(n)]
+    terms = [JetExpandedTerm(f, centers[i], variate, order, weights[i]) for i in range(n)]
     return JetExpansionOut(terms, f)
 
 
-def jet_expand_lm(lm: LM, layer: int, centers: list[Callable[[Tensor], Tensor]], order: int, weight: Tensor | None = None) -> JetExpansionOut:
+def jet_expand_lm(lm: LM, layer: int, centers: list[Callable[[Tensor], Tensor]], order: int, weights: Tensor | None = None) -> JetExpansionOut:
     """
     Implements algorithm 1 from the [paper](https://openreview.net/pdf?id=u6JLh0BO5h), 
     except: 
@@ -73,12 +73,12 @@ def jet_expand_lm(lm: LM, layer: int, centers: list[Callable[[Tensor], Tensor]],
     variate = lm.residual_stream(layer - 1)
     if layer <= lm.depth:
         gamma = lm.layer_fn(layer - 1)
-        jet_out = jet_expand(gamma, centers, variate, order, weight)
-        jet_out_id = jet_expand(torch.nn.Identity(), centers, variate, order, weight)
+        jet_out = jet_expand(gamma, centers, variate, order, weights)
+        jet_out_id = jet_expand(torch.nn.Identity(), centers, variate, order, weights)
         jet_out.terms.extend(jet_out_id.terms)
         jet_out.f = lm.residual_stream(layer)
     else:
-        jet_out = jet_expand(lm.ln, centers, variate, order, weight)
+        jet_out = jet_expand(lm.ln, centers, variate, order, weights)
         jet_out.f = lambda z: lm.ln(variate(z))
         jet_out.unembedding = lm.unembedding
     return jet_out

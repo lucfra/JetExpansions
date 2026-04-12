@@ -6,8 +6,6 @@ Code for the paper [Decomposing LLM Computation with Jets](https://openreview.ne
 
 ## Installation
 
-Requires Python 3.11.
-
 ```bash
 # Standard install
 uv sync
@@ -18,6 +16,17 @@ uv sync --group dev
 # Activate the environment, or prefix commands with `uv run` (e.g. `uv run pytest`)
 source .venv/bin/activate
 ```
+
+## What's inside
+
+- Pytorch implementation of jet operator via `jvp` (Jacobian vector product);
+- composable `jet_expansion` algorithm. This comes in two versions:
+  - a generic version for any functional callable;
+  - a specialised version for residual nets/transformers and expansions around block non-linearities, closely following Algorithm 1 from the paper;
+- loaders and abstractions for some HF models (gpt2, gpt neo, llama, ...); extensible to other models;
+- iterative and joint jet lenses;
+- jet bi-grams: embedding -> unembedding and paths through one mlp.
+
 
 ## Citation
 

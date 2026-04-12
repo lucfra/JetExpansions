@@ -33,6 +33,8 @@ class LM:
         layer_fn: Factory returning a callable h -> h' for layer[idx], handling positional
                   encodings for each architecture (absolute, per-layer RoPE, model-level RoPE).
                   Signature: (idx: int) -> Callable[[Tensor], Tensor].
+        name: Optional identifier for the model (set automatically to the HuggingFace model_id
+              by from_pretrained; can be set manually for custom models).
     """
     model: nn.Module
     tokenizer: Any
@@ -47,6 +49,7 @@ class LM:
     pos_emb: nn.Module | None
     getter: Callable[[Any], Tensor]
     layer_fn: Callable[[int], Callable[[Tensor], Tensor]]
+    name: str | None = None
     
     def __post_init__(self):
         # one CachedF capturing ALL layer hidden states — shared across residual_stream calls
@@ -236,4 +239,6 @@ def from_pretrained(model_id: str, **kwargs) -> LM:
             f"Supported: {sorted(_ADAPTERS)}. "
             "You can build an LM adapter manually with jex.models.LM(...)."
         )
-    return _ADAPTERS[arch](model, tokenizer)
+    lm = _ADAPTERS[arch](model, tokenizer)
+    lm.name = model_id
+    return lm
