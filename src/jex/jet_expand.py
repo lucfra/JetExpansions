@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from math import remainder
 from typing import Callable
 
 from torch import Tensor, nn
@@ -38,17 +39,22 @@ class JetExpansionOut:
     f: Callable[[Tensor], Tensor]
     unembedding: nn.Linear | None = None
     
-    def expansions_and_remainder(self, z: Tensor) -> tuple[list[Tensor], Tensor]:
-        """Compute expansions and remainder in one pass, reusing term evaluations."""
+    def expansions(self, z: Tensor, with_unembedding: bool = False) -> list[Tensor]:
         exps = [term(z) for term in self.terms]
-        return exps, self.f(z) - sum(exps)
+        if with_unembedding:
+            if self.unembedding is None:
+                raise ValueError("unembedding is None")
+            exps = [self.unembedding(exp) for exp in exps]
+        return exps
     
-    def expansions_and_remainder_with_unembedding(self, z: Tensor) -> tuple[list[Tensor], Tensor]:
-        if self.unembedding is None:
-            raise ValueError("unembedding is None")
-        exps, remainder = self.expansions_and_remainder(z)
-        exps = [self.unembedding(exp) for exp in exps]
-        return exps, self.unembedding(remainder)
+    def expansions_and_remainder(self, z: Tensor, with_unembedding: bool = False) -> tuple[list[Tensor], Tensor]:
+        """Compute expansions and remainder in one pass, reusing term evaluations."""
+        exps = self.expansions(z, with_unembedding)
+        remainder = self.f(z) - sum(exps)
+        if with_unembedding:
+            assert self.unembedding is not None
+            remainder = self.unembedding(remainder)
+        return exps, remainder
         
     
 def jet_expand(f: Callable[[Tensor], Tensor], centers: list[Callable[[Tensor], Tensor]], variate: Callable[[Tensor], Tensor], order: int, weights: Tensor | None = None) -> JetExpansionOut:

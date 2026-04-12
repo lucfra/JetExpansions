@@ -26,10 +26,15 @@ source .venv/bin/activate
 - composable `jet_expansion` algorithm. This comes in two versions:
   - a generic version for any functional callable;
   - a specialised version for residual nets/transformers and expansions around block non-linearities, closely following Algorithm 1 from the paper;
-- loaders and abstractions for some HF models (gpt2, gpt neo, llama, ...); extensible to other models;
+- loaders and abstractions for some HF models (gpt2, gpt neo, llama, ...); extensible to other models (contributions welcomed!);
 - iterative and joint jet lenses;
 - jet bi-grams: embedding -> unembedding and paths through one mlp.
+- example notebooks for jet lenses and jet bigrams
 
+The package aims at providing a clear implementation of the core algorithms and applications of the paper.
+It does not include any special optimization, nor accelerator support (contribution welcome :).
+It also does not reproduce all experiments in the paper and nor does it include jet trigrams, since all these were based on an older version of the code that included model-specific optimizations.
+If you're interested in those, please open an issue.
 
 ## Citation
 
