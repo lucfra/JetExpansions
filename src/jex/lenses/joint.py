@@ -54,7 +54,9 @@ class JointJetLens:
         """Returns (combined_logits, per_center_logits), applying current weights."""
         exps = self._jet_out.expansions(z, with_unembedding=True)
         if self._log_weights is None:
-            w = torch.full((self._n,), 1.0 / self._n, device=exps[0].device, dtype=exps[0].dtype)
+            w = torch.full(
+                (self._n,), 1.0 / self._n, device=exps[0].device, dtype=exps[0].dtype
+            )
             weighted = [w[i] * e for i, e in enumerate(exps)]
         else:
             weighted = [self.weights[i].unsqueeze(-1) * e for i, e in enumerate(exps)]
@@ -83,7 +85,7 @@ class JointJetLens:
     ) -> list[float]:
         """Learn per-token weights minimising logit-space reconstruction error."""
         seq_len = z.shape[-1]
-        self._log_weights = nn.Parameter(torch.zeros(self._n, seq_len, device=z.device, dtype=z.dtype))
+        self._log_weights = nn.Parameter(torch.zeros(self._n, seq_len, device=z.device))
         optim = torch.optim.Adam([self._log_weights], lr=lr)
         losses = []
         for _ in range(iters):

@@ -111,6 +111,78 @@ class LM:
 
         return CachedF(lambda z: self._forward_cache(z)[layer - 1])
 
+    def layer_gamma(self, layer: int) -> Callable[[Tensor], Tensor]:
+        """Return a callable for γ_layer(h_{layer-1}(z)) — the block nonlinearity applied to the preceding residual stream.
+
+        Useful as a jet center representing the contribution of block `layer`.
+        """
+        assert 0 <= layer < self.depth, (
+            f"layer must be in [0, depth={self.depth}), got {layer}."
+        )
+        h_prev = self.residual_stream(layer)
+        gamma = self.layer_fn(layer)
+        return CachedF(lambda z: gamma(h_prev(z)))
+
+
+class _ResBlock(nn.Module):
+    """Residual block: h → h + nonlin(h)."""
+
+    def __init__(self, d: int):
+        super().__init__()
+        self.nonlin = nn.Sequential(nn.Linear(d, d), nn.ReLU(), nn.Linear(d, d))
+
+    def forward(self, h: Tensor) -> Tensor:
+        return h + self.nonlin(h)
+
+
+class TwoLayersToyRN(nn.Module):
+    """Two-block residual network for illustrating jet expansions.
+
+    Token ids → embedding → two residual blocks → layer norm → unembedding.
+    Use toy_two_layer_rn() to get an LM-wrapped version ready for jet_expand_lm.
+    """
+
+    VOCAB_SIZE: int = 100
+
+    def __init__(self, d: int = 32):
+        super().__init__()
+        self.embedding = nn.Embedding(self.VOCAB_SIZE, d)
+        self.blocks = nn.ModuleList([_ResBlock(d), _ResBlock(d)])
+        self.ln = nn.LayerNorm(d)
+        self.unembedding = nn.Linear(d, self.VOCAB_SIZE, bias=False)
+
+    def forward(self, z: Tensor) -> Tensor:
+        h = self.embedding(z)
+        for block in self.blocks:
+            h = block(h)
+        return self.unembedding(self.ln(h))
+
+
+def toy_two_layer_rn(d: int = 32) -> "LM":
+    """Create a TwoLayersToyRN wrapped as an LM, ready for jet_expand_lm."""
+    model = TwoLayersToyRN(d)
+    blocks: list[_ResBlock] = list(model.blocks)  # type: ignore[assignment]
+
+    def layer_fn(idx: int) -> Callable[[Tensor], Tensor]:
+        return blocks[idx].nonlin
+
+    return LM(
+        model=model,
+        tokenizer=None,
+        layers=list(model.blocks),
+        attentions=[],
+        mlps=[b.nonlin for b in blocks],
+        pre_attn_norms=[],
+        pre_mlp_norms=[],
+        ln=model.ln,
+        unembedding=model.unembedding,
+        embedding=model.embedding,
+        pos_emb=None,
+        getter=_get_hidden_state,
+        layer_fn=layer_fn,
+        name="TwoLayersToyRN",
+    )
+
 
 def _causal_mask(seq_len: int, device, dtype) -> Tensor:
     """Additive causal attention mask: 0 for positions that can attend, -inf for future positions."""

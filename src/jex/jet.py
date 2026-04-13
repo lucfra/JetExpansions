@@ -65,7 +65,7 @@ def jet(
     assert callable(f), "need a callable function"
     res = [f(x)]
     if k == 0:
-        # quicker path for 0th order, since it's just function evaluation at the center
+        # fast path for 0th order, since it's just function evaluation at the center
         if return_coefficients:
             return res[0], res, res
         else:
