@@ -50,7 +50,11 @@ def plot_table(
     """
     cmap = plt.get_cmap("RdBu_r")
     arr = np.array(values)
-    all_vals = arr if extra_values is None else np.concatenate([arr, np.array(extra_values)], axis=0)
+    all_vals = (
+        arr
+        if extra_values is None
+        else np.concatenate([arr, np.array(extra_values)], axis=0)
+    )
     norm = colors.TwoSlopeNorm(
         vmin=min(float(all_vals.min()) * 1.3, -0.1),
         vcenter=0.0,
@@ -96,14 +100,22 @@ def plot_lens_table(
     n_layers = len(expansions)
     seq_len = tokens.shape[-1]
 
-    col_labels = [lm.tokenizer.convert_ids_to_tokens([t.item()])[0].replace("Ġ", "_") for t in tokens[0]]
+    col_labels = [
+        lm.tokenizer.convert_ids_to_tokens([t.item()])[0].replace("Ġ", "_")
+        for t in tokens[0]
+    ]
     row_labels = [f"Layer {i}" for i in (layer_indices or range(n_layers))]
 
     data, values = top_token_table(expansions, lm)
 
     tl = true_logits[0].float()
     true_vals, true_ids = tl.topk(1, dim=-1)
-    true_data = [[t.replace("Ġ", "_") for t in lm.tokenizer.convert_ids_to_tokens(true_ids[:, 0].tolist())]]
+    true_data = [
+        [
+            t.replace("Ġ", "_")
+            for t in lm.tokenizer.convert_ids_to_tokens(true_ids[:, 0].tolist())
+        ]
+    ]
     true_values = [true_vals[:, 0].tolist()]
 
     ratio = 1.5
@@ -117,8 +129,21 @@ def plot_lens_table(
     if title:
         fig.suptitle(title, fontsize=12, y=1.01)
 
-    plot_table(axes[0, 0], data, values, row_labels=row_labels, col_labels=col_labels, extra_values=true_values)
-    plot_table(axes[1, 0], true_data, true_values, row_labels=["True logits"], extra_values=values)
+    plot_table(
+        axes[0, 0],
+        data,
+        values,
+        row_labels=row_labels,
+        col_labels=col_labels,
+        extra_values=true_values,
+    )
+    plot_table(
+        axes[1, 0],
+        true_data,
+        true_values,
+        row_labels=["True logits"],
+        extra_values=values,
+    )
 
     plt.subplots_adjust(left=0.1, right=0.9)
     if save_path:
@@ -160,12 +185,17 @@ def plot_joint_lens_table(
     seq_len = tokens.shape[-1]
     w = weights.detach().float()  # (n_centers, seq_len)
 
-    col_labels = [lm.tokenizer.convert_ids_to_tokens([t.item()])[0].replace("Ġ", "_") for t in tokens[0]]
+    col_labels = [
+        lm.tokenizer.convert_ids_to_tokens([t.item()])[0].replace("Ġ", "_")
+        for t in tokens[0]
+    ]
 
     indices = layer_indices or list(range(n_centers))
     mean_w = w.mean(dim=1)  # (n_centers,)
     block_names = ["Embedding"] + [f"Block {i}" for i in indices[1:]]
-    row_labels = [f"{name} ({mean_w[k].item() * 100:.2f}%)" for k, name in enumerate(block_names)]
+    row_labels = [
+        f"{name} ({mean_w[k].item() * 100:.2f}%)" for k, name in enumerate(block_names)
+    ]
 
     # cell text: "token (w%)" where w is the per-position weight
     raw_data, values = top_token_table(per_center_logits, lm)
@@ -177,7 +207,12 @@ def plot_joint_lens_table(
     # bottom rows: true logits + reconstruction
     tl = true_logits[0].float()
     true_vals, true_ids = tl.topk(1, dim=-1)
-    true_data = [[t.replace("Ġ", "_") for t in lm.tokenizer.convert_ids_to_tokens(true_ids[:, 0].tolist())]]
+    true_data = [
+        [
+            t.replace("Ġ", "_")
+            for t in lm.tokenizer.convert_ids_to_tokens(true_ids[:, 0].tolist())
+        ]
+    ]
     true_values = [true_vals[:, 0].tolist()]
 
     combined_data, combined_values = top_token_table([combined_logits], lm)
@@ -196,8 +231,21 @@ def plot_joint_lens_table(
     if title:
         fig.suptitle(title, fontsize=12, y=1.01)
 
-    plot_table(axes[0, 0], data, values, row_labels=row_labels, col_labels=col_labels, extra_values=bottom_values)
-    plot_table(axes[1, 0], bottom_data, bottom_values, row_labels=bottom_row_labels, extra_values=values)
+    plot_table(
+        axes[0, 0],
+        data,
+        values,
+        row_labels=row_labels,
+        col_labels=col_labels,
+        extra_values=bottom_values,
+    )
+    plot_table(
+        axes[1, 0],
+        bottom_data,
+        bottom_values,
+        row_labels=bottom_row_labels,
+        extra_values=values,
+    )
 
     plt.subplots_adjust(left=0.15, right=0.9)
     if save_path:

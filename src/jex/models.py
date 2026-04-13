@@ -9,7 +9,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from jex.utils import CachedF
 
 
-
 @dataclass
 class LM:
     """Minimal adapter exposing the components needed for jet expansions.
@@ -36,6 +35,7 @@ class LM:
         name: Optional identifier for the model (set automatically to the HuggingFace model_id
               by from_pretrained; can be set manually for custom models).
     """
+
     model: nn.Module
     tokenizer: Any
     layers: list[nn.Module]
@@ -50,7 +50,7 @@ class LM:
     getter: Callable[[Any], Tensor]
     layer_fn: Callable[[int], Callable[[Tensor], Tensor]]
     name: str | None = None
-    
+
     def __post_init__(self):
         # one CachedF capturing ALL layer hidden states — shared across residual_stream calls
         def _capture_all(z: Tensor) -> list[Tensor]:
@@ -68,7 +68,7 @@ class LM:
             return captured
 
         self._forward_cache = CachedF(_capture_all)  # type: ignore
-        
+
     @property
     def depth(self) -> int:
         return len(self.layers)
@@ -77,15 +77,17 @@ class LM:
     def decoder(self) -> Callable[[Tensor], Tensor]:
         """Dec = ln ∘ lm_head — the full decoder as a single callable."""
         return lambda x: self.unembedding(self.ln(x))
-    
+
     @property
     def encoder(self) -> Callable[[Tensor], Tensor]:
         """Enc = embedding (+ pos_emb if applicable) — maps token ids to hidden states."""
+
         def _encode(z: Tensor) -> Tensor:
             h = self.embedding(z)
             if self.pos_emb is not None:
                 h = h + self.pos_emb(torch.arange(z.shape[-1], device=z.device))
             return h
+
         return _encode
 
     @property
@@ -101,7 +103,9 @@ class LM:
 
         A single forward pass is shared across all residual_stream calls for the same z.
         """
-        assert layer <= self.depth, f"The model has {self.depth} layers, but you requested layer {layer}."
+        assert layer <= self.depth, (
+            f"The model has {self.depth} layers, but you requested layer {layer}."
+        )
         if layer == 0:
             return CachedF(lambda z: self.encoder(z))
 
@@ -111,8 +115,10 @@ class LM:
 def _causal_mask(seq_len: int, device, dtype) -> Tensor:
     """Additive causal attention mask: 0 for positions that can attend, -inf for future positions."""
     mask = torch.zeros((1, 1, seq_len, seq_len), device=device, dtype=dtype)
-    future = torch.ones(seq_len, seq_len, device=device, dtype=torch.bool).triu(diagonal=1)
-    return mask.masked_fill(future, float('-inf'))
+    future = torch.ones(seq_len, seq_len, device=device, dtype=torch.bool).triu(
+        diagonal=1
+    )
+    return mask.masked_fill(future, float("-inf"))
 
 
 def _get_hidden_state(x) -> Tensor:
@@ -154,7 +160,12 @@ def _llama_adapter(model, tokenizer) -> LM:
             position_ids = torch.arange(seq_len, device=h.device).unsqueeze(0)
             cos, sin = model.model.rotary_emb(h, position_ids)
             mask = _causal_mask(seq_len, h.device, h.dtype)
-            return _get_hidden_state(model.model.layers[idx](h, attention_mask=mask, position_embeddings=(cos, sin)))
+            return _get_hidden_state(
+                model.model.layers[idx](
+                    h, attention_mask=mask, position_embeddings=(cos, sin)
+                )
+            )
+
         return call
 
     blocks = list(model.model.layers)
@@ -183,7 +194,12 @@ def _gpt_neox_adapter(model, tokenizer) -> LM:
             position_ids = torch.arange(seq_len, device=h.device).unsqueeze(0)
             cos, sin = model.gpt_neox.rotary_emb(h, position_ids)
             mask = _causal_mask(seq_len, h.device, h.dtype)
-            return _get_hidden_state(model.gpt_neox.layers[idx](h, attention_mask=mask, position_embeddings=(cos, sin)))
+            return _get_hidden_state(
+                model.gpt_neox.layers[idx](
+                    h, attention_mask=mask, position_embeddings=(cos, sin)
+                )
+            )
+
         return call
 
     blocks = list(model.gpt_neox.layers)

@@ -6,7 +6,6 @@ from typing import Callable
 
 
 class CachedF:
-
     def __init__(self, variate: Callable[[Tensor], Tensor]) -> None:
         self._variate = variate
 

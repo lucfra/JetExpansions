@@ -21,10 +21,12 @@ def test_forward(lm, tokens):
 
 def test_layer_injection(lm: LM, tokens):
     if lm.pos_emb is None:
-        pytest.skip("layer injection not supported for RoPE models (position embeddings are not standalone modules)")
+        pytest.skip(
+            "layer injection not supported for RoPE models (position embeddings are not standalone modules)"
+        )
 
     d = lm.model.config.hidden_size  # type: ignore
-    
+
     with torch.no_grad():
         embeddings = lm.embedding(tokens)
         assert embeddings.shape == (1, tokens.shape[1], d)
@@ -34,8 +36,8 @@ def test_layer_injection(lm: LM, tokens):
         assert ln_out.shape == (1, tokens.shape[1], d)
         out = lm.unembedding(ln_out)
         assert out.shape == (1, tokens.shape[1], lm.vocab_size)
-        
-        
+
+
 def test_residual_stream(lm: LM, tokens):
     hidden_size = lm.model.config.hidden_size  # type: ignore
     seq_len = tokens.shape[1]
@@ -67,12 +69,12 @@ def test_residual_stream(lm: LM, tokens):
     # last layer coincides with the transformer output (before the lm head)
     h_L = lm.residual_stream(lm.depth)(tokens)
     h_L_after_global_norm = lm.ln(h_L)
-    if hasattr(lm.model, 'transformer'):
+    if hasattr(lm.model, "transformer"):
         # gpt2 - style
         transformer = lm.model.transformer
-    elif hasattr(lm.model, 'gpt_neox'):
+    elif hasattr(lm.model, "gpt_neox"):
         transformer = lm.model.gpt_neox
-    else: 
+    else:
         pytest.skip("Don't know the transformer structure")
     if transformer:
         hL_transformer = transformer(tokens)  # type: ignore

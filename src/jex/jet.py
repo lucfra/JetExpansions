@@ -1,3 +1,4 @@
+import re
 from typing import Callable, Literal, overload
 
 import torch
@@ -9,7 +10,7 @@ from torch.autograd.functional import jvp
 def jet(
     f: Callable[[Tensor], Tensor],
     x: Tensor,
-    y: Tensor,
+    y: Tensor | None,
     k: int,
     *,
     recenter: bool = True,
@@ -21,7 +22,7 @@ def jet(
 def jet(
     f: Callable[[Tensor], Tensor],
     x: Tensor,
-    y: Tensor,
+    y: Tensor | None,
     k: int,
     *,
     recenter: bool = True,
@@ -32,7 +33,7 @@ def jet(
 def jet(
     f: Callable[[Tensor], Tensor],
     x: Tensor,
-    y: Tensor,
+    y: Tensor | None,
     k: int,
     *,
     recenter: bool = True,
@@ -63,6 +64,14 @@ def jet(
     """
     assert callable(f), "need a callable function"
     res = [f(x)]
+    if k == 0:
+        # quicker path for 0th order, since it's just function evaluation at the center
+        if return_coefficients:
+            return res[0], res, res
+        else:
+            return res[0]
+    if y is None:
+        raise ValueError("y cannot be None if k>=0")
     functions: list[Callable[[Tensor], Tensor]] = [f]
     yp = y.detach()
     if recenter:
@@ -71,6 +80,7 @@ def jet(
     def make_functional(i: int) -> Callable[[Tensor], Tensor]:
         def _f(_x: Tensor) -> Tensor:
             return jvp(functions[i], _x, yp, create_graph=True, strict=False)[1]  # type: ignore
+
         return _f
 
     for j in range(1, k + 1):
@@ -79,6 +89,6 @@ def jet(
 
     sum_all: Tensor = sum(res)  # type: ignore[assignment]
     if return_coefficients:
-        partial_sums = [sum(res[1:j + 1], res[0]) for j in range(k + 1)]
+        partial_sums = [sum(res[1 : j + 1], res[0]) for j in range(k + 1)]
         return sum_all, res, partial_sums
     return sum_all

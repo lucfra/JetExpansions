@@ -13,20 +13,22 @@ class IterativeJetLenses:
     term independently approximates the full decoder output — compatible with
     the logit lens interpretation.
 
-    Note:  Iterative jet lenses are separate by layer, they are not meant to form a 
+    Note:  Iterative jet lenses are separate by layer, they are not meant to form a
     convex combination, unlike the joint lens.
-    That's why in the implementation we set all weights to 1. 
+    That's why in the implementation we set all weights to 1.
     """
 
     def __init__(self, lm: LM, layers: list[int], order: int):
         centers = [lm.residual_stream(l) for l in layers]
         weight = torch.ones(len(centers))
-        self._jet_out: JetExpansionOut = jet_expand_lm(lm, lm.depth + 1, centers, order, weights=weight)
+        self._jet_out: JetExpansionOut = jet_expand_lm(
+            lm, lm.depth + 1, centers, order, weights=weight
+        )
         self._lm = lm
 
     def __call__(self, z: Tensor) -> tuple[list[Tensor], Tensor]:
         """Evaluate expansion on z. Returns (expansions, remainder) in logit space."""
-        return self._jet_out.expansions_and_remainder_with_unembedding(z)
+        return self._jet_out.expansions_and_remainder(z, with_unembedding=True)
 
     def cosine_similarity(self, z: Tensor) -> Tensor:
         """Cosine similarity between each jet expansion and the true logits.

@@ -16,6 +16,9 @@ uv sync --group dev
 # Examples install (includes jupyter, matplotlib, seaborn)
 uv sync --group examples
 
+# All groups
+uv sync --all-groups
+
 # Activate the environment, or prefix commands with `uv run` (e.g. `uv run pytest`)
 source .venv/bin/activate
 ```
@@ -31,9 +34,8 @@ source .venv/bin/activate
 - jet bi-grams: embedding -> unembedding and paths through one mlp.
 - example notebooks for jet lenses and jet bigrams
 
-The package aims at providing a clear implementation of the core algorithms and applications of the paper.
-It does not include any special optimization, nor accelerator support (contribution welcome :).
-It also does not reproduce all experiments in the paper and nor does it include jet trigrams, since all these were based on an older version of the code that included model-specific optimizations.
+The package aims at providing the core algorithms and applications of the paper, favouring clarity and generality over (model) specific optimization.
+The package does not reproduce all experiments in the paper and nor does it include jet trigrams, since all these were based on an older version of the code that included model-specific optimizations.
 If you're interested in those, please open an issue.
 
 ## Citation

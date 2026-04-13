@@ -4,6 +4,7 @@ from jex.jet import jet
 
 # --- basic polynomial tests ---
 
+
 def test_jet_base():
     torch.random.manual_seed(1)
     dims = (10, 20)
@@ -30,24 +31,26 @@ def test_jet_base():
 
     print(jet3)
 
-    fy = (x + y) + (x+ y)**2 + (x+ y)**3
+    fy = (x + y) + (x + y) ** 2 + (x + y) ** 3
 
-    assert torch.allclose(fy, jet3, atol=1.e-5)
-    assert torch.allclose(fy, jet4, atol=1.e-5)  # making order 4 does not change for this function!
-    assert not torch.allclose(fy, jet2, atol=1.e-5)  # this should not be the same!
+    assert torch.allclose(fy, jet3, atol=1.0e-5)
+    assert torch.allclose(
+        fy, jet4, atol=1.0e-5
+    )  # making order 4 does not change for this function!
+    assert not torch.allclose(fy, jet2, atol=1.0e-5)  # this should not be the same!
 
     # make sure subtract works
     jet3_s = jet(f, x, y, 3, recenter=True)
     fy_s = y + y**2 + y**3
 
-    assert torch.allclose(fy_s, jet3_s, atol=1.e-5)
+    assert torch.allclose(fy_s, jet3_s, atol=1.0e-5)
 
 
 def test_quadratic():
     dim = d = 10
-    W = torch.randn(dim, dim, dim//2)
-    f = lambda x: torch.einsum('i,j,ijk->k', x, x, W)
-    other_f = lambda x: torch.stack([x @ W[..., i] @ x for i in range(dim//2)])
+    W = torch.randn(dim, dim, dim // 2)
+    f = lambda x: torch.einsum("i,j,ijk->k", x, x, W)
+    other_f = lambda x: torch.stack([x @ W[..., i] @ x for i in range(dim // 2)])
     x1 = torch.randn(d, requires_grad=True)
     x2 = torch.randn(d, requires_grad=True)
     fx1 = f(x1)
@@ -61,7 +64,7 @@ def test_quadratic():
     jet2 = jet(f, x1, x2, 2)
     jet3 = jet(f, x1, x2, 3)
 
-    print(jet1, jet2, jet3, sep='\n')
+    print(jet1, jet2, jet3, sep="\n")
     assert torch.allclose(jet2, fx2, atol=1e-5, rtol=1e-5)
     assert torch.allclose(jet3, jet2, atol=1e-5, rtol=1e-5)  # this will be the same
     assert not torch.allclose(jet1, fx2, atol=1e-3, rtol=1e-3)
@@ -69,8 +72,8 @@ def test_quadratic():
 
 def test_cubic():
     dim = d = 10
-    W = torch.randn(dim, dim, dim, dim//2)
-    f = lambda x: torch.einsum('i,j,r,ijrk->k', x, x, x, W)
+    W = torch.randn(dim, dim, dim, dim // 2)
+    f = lambda x: torch.einsum("i,j,r,ijrk->k", x, x, x, W)
     x1 = torch.randn(d, requires_grad=True)
     x2 = torch.randn(d, requires_grad=True)
     fx1 = f(x1)
@@ -83,10 +86,10 @@ def test_cubic():
     jet3 = jet(f, x1, x2, 3)
     jet4 = jet(f, x1, x2, 4)
 
-    print(jet2, jet3, jet4, sep='\n')
-    assert torch.allclose(jet3, fx2, atol=1.e-4, rtol=1.e-4)
-    assert torch.allclose(jet4, jet3, atol=1.e-4, rtol=1.e-4)  # this will be the same
-    assert not torch.allclose(jet2, fx2, atol=1.e-4, rtol=1.e-4)
+    print(jet2, jet3, jet4, sep="\n")
+    assert torch.allclose(jet3, fx2, atol=1.0e-4, rtol=1.0e-4)
+    assert torch.allclose(jet4, jet3, atol=1.0e-4, rtol=1.0e-4)  # this will be the same
+    assert not torch.allclose(jet2, fx2, atol=1.0e-4, rtol=1.0e-4)
 
 
 def test_nonlinear():
@@ -108,57 +111,66 @@ def test_nonlinear():
     print(out_l)
 
     intervals = [0, 0.001, 0.1, 0.2, 0.5]
-    jets2 = [jet(f, x1, x1 + t*eps, 2) for t in intervals]
-    jets3 = [jet(f, x1, x1 + t*eps, 3) for t in intervals]
-    jets4 = [jet(f, x1, x1 + t*eps, 4) for t in intervals]
+    jets2 = [jet(f, x1, x1 + t * eps, 2) for t in intervals]
+    jets3 = [jet(f, x1, x1 + t * eps, 3) for t in intervals]
+    jets4 = [jet(f, x1, x1 + t * eps, 4) for t in intervals]
 
     norms = {}
     for kk, jets in enumerate([jets2, jets3, jets4]):
         norms[kk] = []
         for k, t in enumerate(intervals):
-            out = f(x1 + t*eps)
+            out = f(x1 + t * eps)
 
             norms[kk].append(torch.norm(out - jets[k]).item())
             if t == 0:
-                assert torch.allclose(out, jets[0], atol=1.e-4, rtol=1.e-4)
+                assert torch.allclose(out, jets[0], atol=1.0e-4, rtol=1.0e-4)
         print(norms)
 
 
 # --- multivariate tests with analytical derivatives ---
 
+
 def f_mv(x):
-    return torch.sin(x[0] + 3*x[1] + x[0]**3*x[1])
+    return torch.sin(x[0] + 3 * x[1] + x[0] ** 3 * x[1])
+
 
 def grad_f_mv(x):
-    inner = x[0] + 3*x[1] + x[0]**3*x[1]
-    df_dx0 = (1 + 3*x[0]**2*x[1]) * torch.cos(inner)
-    df_dx1 = (3 + x[0]**3) * torch.cos(inner)
+    inner = x[0] + 3 * x[1] + x[0] ** 3 * x[1]
+    df_dx0 = (1 + 3 * x[0] ** 2 * x[1]) * torch.cos(inner)
+    df_dx1 = (3 + x[0] ** 3) * torch.cos(inner)
     return torch.stack([df_dx0, df_dx1])
 
+
 def hess_f_mv(x):
-    inner = x[0] + 3*x[1] + x[0]**3*x[1]
+    inner = x[0] + 3 * x[1] + x[0] ** 3 * x[1]
     c = torch.cos(inner)
     s = torch.sin(inner)
-    d2f_dx0x0 = 6*x[0]*x[1]*c - (1 + 3*x[0]**2*x[1])**2*s
-    d2f_dx1x1 = -(3 + x[0]**3)**2*s
-    d2f_dx0x1 = 3*x[0]**2*c - (3 + x[0]**3)*(1 + 3*x[0]**2*x[1])*s
-    return torch.stack([
-        torch.stack([d2f_dx0x0, d2f_dx0x1]),
-        torch.stack([d2f_dx0x1, d2f_dx1x1]),
-    ])
+    d2f_dx0x0 = 6 * x[0] * x[1] * c - (1 + 3 * x[0] ** 2 * x[1]) ** 2 * s
+    d2f_dx1x1 = -((3 + x[0] ** 3) ** 2) * s
+    d2f_dx0x1 = 3 * x[0] ** 2 * c - (3 + x[0] ** 3) * (1 + 3 * x[0] ** 2 * x[1]) * s
+    return torch.stack(
+        [
+            torch.stack([d2f_dx0x0, d2f_dx0x1]),
+            torch.stack([d2f_dx0x1, d2f_dx1x1]),
+        ]
+    )
+
 
 def jet1_mv(x, y):
     return f_mv(x) + grad_f_mv(x) @ (y - x)
 
+
 def jet2_mv(x, y):
-    return jet1_mv(x, y) + 1/2 * (hess_f_mv(x) @ (y - x)) @ (y - x)
+    return jet1_mv(x, y) + 1 / 2 * (hess_f_mv(x) @ (y - x)) @ (y - x)
 
 
 def test_hessian():
     x = torch.randn(2, requires_grad=True)
     auto_hess = torch.autograd.functional.hessian(f_mv, x)
     anal_hess = hess_f_mv(x.detach())
-    assert torch.allclose(auto_hess, anal_hess), f"\nautograd:\n{auto_hess}\nanalytical:\n{anal_hess}"
+    assert torch.allclose(auto_hess, anal_hess), (
+        f"\nautograd:\n{auto_hess}\nanalytical:\n{anal_hess}"
+    )
 
 
 def test_jet_k1():
@@ -175,4 +187,6 @@ def test_jet_k2():
     y = torch.randn(2)
 
     j2 = jet(f_mv, x, y, recenter=True, k=2)
-    assert torch.allclose(jet2_mv(x, y), j2), f"\nanalytical: {jet2_mv(x, y)}\njet: {j2}"
+    assert torch.allclose(jet2_mv(x, y), j2), (
+        f"\nanalytical: {jet2_mv(x, y)}\njet: {j2}"
+    )

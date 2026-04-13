@@ -8,9 +8,9 @@ from jex.models import LM
 @pytest.fixture()
 def centers(lm: LM):
     centers = [
-        lm.embedding, 
+        lm.embedding,
         lm.residual_stream(1),  # = h_1
-        lambda z: lm.residual_stream(4)(z) - lm.residual_stream(3)(z)   # = gamma_4(h_3)
+        lambda z: lm.residual_stream(4)(z) - lm.residual_stream(3)(z),  # = gamma_4(h_3)
     ]
     return centers
 
@@ -24,19 +24,19 @@ def test_decoder_expansion(lm: LM, tokens, centers, k):
 
     f_from_expansions = sum(expansions) + reminder
     # compute output from the "standard" forward
-    if hasattr(lm.model, 'transformer'):
+    if hasattr(lm.model, "transformer"):
         # gpt2 - style
         transformer = lm.model.transformer
-    elif hasattr(lm.model, 'gpt_neox'):
+    elif hasattr(lm.model, "gpt_neox"):
         transformer = lm.model.gpt_neox
     else:
         pytest.skip("Don't know the transformer structure")
     original_out = transformer(tokens)[0]  # type: ignore
-    
+
     # with float16 we are a bit off... but still should be
     tol = 1e-1 if original_out.dtype == torch.float16 else 1e-4
     assert torch.allclose(f_from_expansions, original_out, atol=tol, rtol=tol)
-    
+
 
 @pytest.mark.parametrize("k", [0, 1])
 def test_jet_expansions_are_diff_wrt_weights(lm: LM, tokens, centers, k):
