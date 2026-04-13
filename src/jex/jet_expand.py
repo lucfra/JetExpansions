@@ -67,7 +67,7 @@ class JetExpansionOut:
         return exps, remainder
 
 
-def jet_expand(
+def expand(
     f: Callable[[Tensor], Tensor],
     centers: list[Callable[[Tensor], Tensor]],
     variate: Callable[[Tensor], Tensor],
@@ -89,7 +89,7 @@ def jet_expand(
     return JetExpansionOut(terms, f)
 
 
-def jet_expand_lm(
+def expand_lm(
     lm: LM,
     layer: int,
     centers: list[Callable[[Tensor], Tensor]],
@@ -107,12 +107,12 @@ def jet_expand_lm(
     variate = lm.residual_stream(layer - 1)
     if layer <= lm.depth:
         gamma = lm.layer_fn(layer - 1)
-        jet_out = jet_expand(gamma, centers, variate, order, weights)
-        jet_out_id = jet_expand(torch.nn.Identity(), centers, variate, order, weights)
+        jet_out = expand(gamma, centers, variate, order, weights)
+        jet_out_id = expand(torch.nn.Identity(), centers, variate, order, weights)
         jet_out.terms.extend(jet_out_id.terms)
         jet_out.f = lm.residual_stream(layer)
     else:
-        jet_out = jet_expand(lm.ln, centers, variate, order, weights)
+        jet_out = expand(lm.ln, centers, variate, order, weights)
         jet_out.f = lambda z: lm.ln(variate(z))
         jet_out.unembedding = lm.unembedding
     return jet_out

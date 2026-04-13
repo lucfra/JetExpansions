@@ -1,6 +1,6 @@
 import torch
 
-from jex.jet_expand import jet_expand_lm
+from jex.jet_expand import expand_lm
 from jex.models import toy_two_layer_rn
 
 
@@ -14,8 +14,8 @@ def test_quickstart_two_layer_rn():
     x1 = lm.layer_gamma(0)
 
     with torch.no_grad():
-        inner = jet_expand_lm(lm, layer=2, centers=[x0, x1], order=1)
-        outer = jet_expand_lm(lm, layer=lm.depth + 1, centers=inner.terms, order=1)
+        inner = expand_lm(lm, layer=2, centers=[x0, x1], order=1)
+        outer = expand_lm(lm, layer=lm.depth + 1, centers=inner.terms, order=1)
         paths, remainder = outer.expansions_and_remainder(z, with_unembedding=True)
 
     # correct number of paths

@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from jex.jet_expand import jet_expand_lm
+from jex.jet_expand import expand_lm
 from jex.models import LM
 
 
@@ -17,7 +17,7 @@ def centers(lm: LM):
 
 @pytest.mark.parametrize("k", [0, 1])
 def test_decoder_expansion(lm: LM, tokens, centers, k):
-    exp_out = jet_expand_lm(lm, lm.depth + 1, centers, k)
+    exp_out = expand_lm(lm, lm.depth + 1, centers, k)
     expansions, reminder = exp_out.expansions_and_remainder(tokens)
     assert len(expansions) == len(centers)
     assert expansions[0].shape == reminder.shape
@@ -42,7 +42,7 @@ def test_decoder_expansion(lm: LM, tokens, centers, k):
 def test_jet_expansions_are_diff_wrt_weights(lm: LM, tokens, centers, k):
     log_weights = torch.nn.Parameter(torch.zeros(len(centers)))
     weights = log_weights.softmax(dim=0)
-    expansion_out = jet_expand_lm(lm, lm.depth + 1, centers, k, weights=weights)
+    expansion_out = expand_lm(lm, lm.depth + 1, centers, k, weights=weights)
     _, r = expansion_out.expansions_and_remainder(tokens)
     # a scalar loss from the reminder
     loss = torch.sum(r**2)

@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn import CosineSimilarity
 
-from jex.jet_expand import JetExpansionOut, jet_expand_lm
+from jex.jet_expand import JetExpansionOut, expand_lm
 from jex.models import LM
 
 
@@ -30,7 +30,7 @@ class JointJetLens:
             )(layers[i - 1], layers[i])
             for i in range(1, len(layers))
         ]
-        self._jet_out: JetExpansionOut = jet_expand_lm(lm, lm.depth + 1, centers, order)
+        self._jet_out: JetExpansionOut = expand_lm(lm, lm.depth + 1, centers, order)
         self._lm = lm
         self._n = len(centers)
         self._log_weights: nn.Parameter | None = None

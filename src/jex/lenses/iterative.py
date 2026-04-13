@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 from torch.nn import CosineSimilarity
 
-from jex.jet_expand import JetExpansionOut, jet_expand_lm
+from jex.jet_expand import JetExpansionOut, expand_lm
 from jex.models import LM
 
 
@@ -21,7 +21,7 @@ class IterativeJetLenses:
     def __init__(self, lm: LM, layers: list[int], order: int):
         centers = [lm.residual_stream(l) for l in layers]
         weight = torch.ones(len(centers))
-        self._jet_out: JetExpansionOut = jet_expand_lm(
+        self._jet_out: JetExpansionOut = expand_lm(
             lm, lm.depth + 1, centers, order, weights=weight
         )
         self._lm = lm

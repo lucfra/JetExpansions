@@ -32,19 +32,18 @@ Carving a two-block residual network into four explicit input→output paths (th
 
 ```python
 import torch
-from jex.models import toy_two_layer_rn
-from jex.jet_expand import jet_expand_lm
+import jex
 
-lm = toy_two_layer_rn(d=32)
+lm = jex.toy_two_layer_rn(d=32)
 
 x0 = lm.residual_stream(0)  # Enc(z)
 x1 = lm.layer_gamma(0)      # γ₁(Enc(z))
 
 # Step 1: expand blk2 at {x0, x1} → 4 sub-streams (γ₂ and identity terms per center)
-inner = jet_expand_lm(lm, layer=2, centers=[x0, x1], order=1)
+inner = jex.expand_lm(lm, layer=2, centers=[x0, x1], order=1)
 
 # Step 2: expand decoder at inner sub-streams → paths in logit space
-outer = jet_expand_lm(lm, layer=lm.depth + 1, centers=inner.terms, order=1)
+outer = jex.expand_lm(lm, layer=lm.depth + 1, centers=inner.terms, order=1)
 
 # Done: we have functionally "expanded" the model into 4 input-to-output paths
 assert len(outer.terms) == 4
