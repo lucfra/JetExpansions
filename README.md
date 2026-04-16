@@ -43,6 +43,7 @@ x1 = lm.layer_gamma(0)      # γ₁(Enc(z))
 inner = jex.expand_lm(lm, layer=2, centers=[x0, x1], order=1)
 
 # Step 2: expand decoder at inner sub-streams → paths in logit space
+# `expand_lm` is composable: expansions of the previous operation can be centers of a new one 
 outer = jex.expand_lm(lm, layer=lm.depth + 1, centers=inner.terms, order=1)
 
 # Done: we have functionally "expanded" the model into 4 input-to-output paths
